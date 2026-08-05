@@ -3,8 +3,7 @@
 #include "ofxSteamAudio.h"
 #include <vector>
 
-/// Pathing / probes demo with visible 3D walls, solid ground,
-/// and keyboard-controllable listener + emitter spheres.
+/// de_dust2–inspired A-site + Long layout with controllable listener & emitter.
 class ofApp : public ofBaseApp {
 public:
 	void setup() override;
@@ -18,20 +17,29 @@ public:
 	void mouseReleased(int x, int y, int button) override;
 
 private:
+	enum class MatKind { Plaster, Brick, Wood, Concrete, Metal, Sand };
+
 	struct Wall {
 		glm::vec3 center;
-		glm::vec3 size; // width, height, depth
+		glm::vec3 size; // width (X), height (Y), depth (Z)
 		ofColor color;
+		MatKind mat = MatKind::Plaster;
 		ofBoxPrimitive mesh;
 	};
 
-	void buildRoom();
+	void resetCamera();
+	void resetActors();
+	void buildDust2ASite();
+	void addWall(const glm::vec3& center, const glm::vec3& size, MatKind mat, ofColor color);
 	void rebuildProbes();
+	void bindSimulator();
 	void runDirectSim();
 	void drawHelp() const;
+	void drawLabels() const;
 	void moveSelected(const glm::vec3& delta);
-	glm::vec3 clampToRoom(const glm::vec3& p) const;
+	glm::vec3 clampToMap(const glm::vec3& p) const;
 	bool rayPlaneY(const glm::vec2& screen, float y, glm::vec3& hit) const;
+	static IPLMaterial iplMat(MatKind k);
 
 	ofEasyCam cam;
 
@@ -55,20 +63,25 @@ private:
 	ofPlanePrimitive ground;
 	std::vector<IPLSphere> probeSpheres;
 	bool showProbes = true;
+	bool showLabels = true;
 
 	// Controllable poses (world meters, Y-up)
-	glm::vec3 listenerPos{ 0.0f, 1.6f,  3.5f };
-	glm::vec3 sourcePos  { 0.0f, 1.6f, -3.5f };
-	glm::vec3 listenerAhead{ 0.0f, 0.0f, -1.0f }; // face -Z by default
+	// Long runs along +Z toward A site; site sits at high Z.
+	glm::vec3 listenerPos{ 1.5f, 1.6f, 12.0f };   // on A site (CT)
+	glm::vec3 sourcePos  { 0.0f, 1.6f, -22.0f };  // T side of Long
+	glm::vec3 listenerAhead{ 0.0f, 0.0f, -1.0f };
 	enum class Selection { Listener, Source };
 	Selection selection = Selection::Source;
+
+	// Map bounds (for clamp + ground)
+	float mapMinX = -14.0f, mapMaxX = 16.0f;
+	float mapMinZ = -30.0f, mapMaxZ = 22.0f;
+	float wallHeight = 4.0f;
 
 	// Interaction
 	bool keys[512]{};
 	bool dragging = false;
-	float moveSpeed = 4.0f; // m/s
-	float roomHalf = 5.0f;
-	float wallHeight = 3.0f;
+	float moveSpeed = 6.0f; // m/s — larger map
 
 	// Audio state
 	float phase = 0.0f;
