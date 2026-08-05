@@ -1,0 +1,104 @@
+name: macOS Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Build & run API tests (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 90
+
+    env:
+      OF_BRANCH: master
+      OF_DIR: openFrameworks
+
+    steps:
+      - name: Checkout ofxSteamAudio
+        uses: actions/checkout@v4
+        with:
+          path: ofxSteamAudio
+
+      - name: Checkout openFrameworks
+        uses: actions/checkout@v4
+        with:
+          repository: openframeworks/openFrameworks
+          path: ${{ env.OF_DIR }}
+          # Shallow clone for speed; use full history only if needed
+          fetch-depth: 1
+
+      - name: Install system dependencies
+        run: |
+          brew update
+          # OF macOS deps (best-effort; core tools for Makefile builds)
+          brew install cmake pkg-config || true
+
+      - name: Download openFrameworks libraries
+        working-directory: ${{ env.OF_DIR }}
+        run: |
+          if [ -f scripts/osx/download_libs.sh ]; then
+            bash scripts/osx/download_libs.sh
+          elif [ -f scripts/dev/download_libs.sh ]; then
+            bash scripts/dev/download_libs.sh -p osx
+          else
+            echo "WARNING: could not find download_libs script"
+            ls scripts || true
+          fi
+
+      - name: Link addon into openFrameworks
+        run: |
+          mkdir -p "${OF_DIR}/addons"
+          # Remove any existing ofxSteamAudio and link ours
+          rm -rf "${OF_DIR}/addons/ofxSteamAudio"
+          ln -s "$(pwd)/ofxSteamAudio" "${OF_DIR}/addons/ofxSteamAudio"
+          # Ensure Steam Audio prebuilt libs are present
+          test -f ofxSteamAudio/libs/steamaudio/lib/osx/libphonon.a
+          test -f ofxSteamAudio/libs/steamaudio/include/phonon.h
+          ls -la ofxSteamAudio/libs/steamaudio/lib/osx/
+
+      - name: Build openFrameworks core (Release)
+        working-directory: ${{ env.OF_DIR }}/libs/openFrameworksCompiled/project
+        run: |
+          make -j$(sysctl -n hw.ncpu) Release
+
+      - name: Build API tests
+        working-directory: ${{ env.OF_DIR }}/addons/ofxSteamAudio/tests/api-tests
+        run: |
+          make -j$(sysctl -n hw.ncpu) Release
+          ls -la bin/ || true
+
+      - name: Run API tests
+        working-directory: ${{ env.OF_DIR }}/addons/ofxSteamAudio/tests/api-tests
+        run: |
+          # Headless; ofAppNoWindow exits with test status via std::exit
+          BIN=$(ls bin/* 2>/dev/null | head -1)
+          if [ -z "$BIN" ]; then
+            # macOS app bundle layout
+            BIN=$(find bin -type f -perm +111 | head -1)
+          fi
+          echo "Running: $BIN"
+          "$BIN"
+
+      - name: Build examples (compile-only)
+        working-directory: ${{ env.OF_DIR }}/addons/ofxSteamAudio/examples
+        run: |
+          set -e
+          for ex in simple-example example-panning example-ambisonics \
+                    example-virtual-surround example-direct example-scene \
+                    example-reflections example-pathing; do
+            echo "======== Building $ex ========"
+            make -C "$ex" -j$(sysctl -n hw.ncpu) Release
+          done
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-test-logs
+          path: |
+            ${{ env.OF_DIR }}/addons/ofxSteamAudio/tests/api-tests/obj/**
+            ${{ env.OF_DIR }}/addons/ofxSteamAudio/tests/api-tests/bin/**
+          if-no-files-found: ignore

@@ -1,0 +1,597 @@
+{
+	"_OFProjectGeneratorVersion": "0.104.0",
+	"archiveVersion": "1",
+	"classes": {},
+	"objectVersion": "54",
+	"objects": {
+		"0301F813-A6CF-4253-A33A-B8401C6A8C55": {
+			"fileRef": "C8244AC1-DCCE-4F63-BB9E-D9790B1CC091",
+			"isa": "PBXBuildFile"
+		},
+		"083AE9C5-86A2-4FF2-A79E-EA7DB3B23C78": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.h",
+			"name": "phonon.h",
+			"sourceTree": "<group>"
+		},
+		"0913A74B-282D-4572-9D81-43CE3B9609FF": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.h",
+			"name": "ofxSteamAudioHRTF.h",
+			"sourceTree": "<group>"
+		},
+		"0D5E1111-AD0A-4F0B-93AB-E619C6A2F9DB": {
+			"children": [
+				"5627C92F-D62B-49B3-842B-C479DC0393BF",
+				"C8244AC1-DCCE-4F63-BB9E-D9790B1CC091",
+				"FB3ABB56-322B-4344-B2D2-1080C62C6BFF"
+			],
+			"isa": "PBXGroup",
+			"name": "Frameworks",
+			"path": "",
+			"sourceTree": "SOURCE_ROOT"
+		},
+		"0F558DCC-8A87-43CF-B83C-C566209C7569": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.cpp",
+			"name": "ofxSteamAudio.cpp",
+			"sourceTree": "<group>"
+		},
+		"1583D790-7DBF-4846-9407-5410AD1323D4": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.h",
+			"name": "ofxSteamAudioUtils.h",
+			"sourceTree": "<group>"
+		},
+		"191CD6FA2847E21E0085CBB6": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "text.plist.entitlements",
+			"path": "of.entitlements",
+			"sourceTree": "<group>"
+		},
+		"191EF70929D778A400F35F26": {
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "folder",
+			"name": "openFrameworks",
+			"path": "../../../../libs/openFrameworks",
+			"sourceTree": "SOURCE_ROOT"
+		},
+		"19B789C429E5AB4A0082E9B8": {
+			"alwaysOutOfDate": "1",
+			"buildActionMask": "2147483647",
+			"files": [],
+			"inputFileListPaths": [],
+			"inputPaths": [],
+			"isa": "PBXShellScriptBuildPhase",
+			"outputFileListPaths": [],
+			"outputPaths": [],
+			"runOnlyForDeploymentPostprocessing": "0",
+			"shellPath": "/bin/sh",
+			"shellScript": "\"$OF_PATH/scripts/osx/xcode_project.sh\"\n",
+			"showEnvVarsInLog": "0"
+		},
+		"2285EE04-1625-41D0-8E7E-533999EF38BE": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.h",
+			"name": "phonon_version.h",
+			"sourceTree": "<group>"
+		},
+		"229F53DB-343E-4BD1-9F04-C973B0E9BB62": {
+			"children": [
+				"4EFAE6BC-6069-408D-8314-0EAC374EC16A",
+				"35A07858-D276-4BAE-AB64-06D427252D1A"
+			],
+			"isa": "PBXGroup",
+			"name": "ofxSteamAudio",
+			"path": "ofxSteamAudio",
+			"sourceTree": "<group>"
+		},
+		"27285520-3CA1-48DA-B17E-51D9D2D13720": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.h",
+			"name": "ofxSteamAudio.h",
+			"sourceTree": "<group>"
+		},
+		"2CC73DD6-D9E5-45B4-9EF6-953405CEABF6": {
+			"fileRef": "0F558DCC-8A87-43CF-B83C-C566209C7569",
+			"isa": "PBXBuildFile"
+		},
+		"35A07858-D276-4BAE-AB64-06D427252D1A": {
+			"children": [
+				"0F558DCC-8A87-43CF-B83C-C566209C7569",
+				"27285520-3CA1-48DA-B17E-51D9D2D13720",
+				"4041C8A4-7439-4D55-8E14-395CBA970C93",
+				"FBA0CE0A-230B-4384-9B89-638C1A42C866",
+				"5E048518-A11B-4887-8AF0-E9034F5AD834",
+				"3741AF10-FC63-4C28-8246-B5EC98730E1B",
+				"C42C5557-6089-4778-BDF1-9E255C0E88FB",
+				"8EA4992E-E39E-4F04-AEA1-1A822F1529F3",
+				"5E87DB66-04EF-4C51-A958-688A6EFD1601",
+				"0913A74B-282D-4572-9D81-43CE3B9609FF",
+				"55679119-6383-47CF-8CD3-C75D42396F83",
+				"8C2C350F-121D-413A-A68A-C3FBBEB95A5F",
+				"CAF77259-C007-4643-BA07-F57320764974",
+				"C4198B11-B5D7-440E-8F60-F9500F240F80",
+				"1583D790-7DBF-4846-9407-5410AD1323D4"
+			],
+			"isa": "PBXGroup",
+			"name": "src",
+			"path": "src",
+			"sourceTree": "<group>"
+		},
+		"3741AF10-FC63-4C28-8246-B5EC98730E1B": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.h",
+			"name": "ofxSteamAudioContext.h",
+			"sourceTree": "<group>"
+		},
+		"400F1B34-D0A6-4F47-AB8E-F0ABDD9C4162": {
+			"fileRef": "CAF77259-C007-4643-BA07-F57320764974",
+			"isa": "PBXBuildFile"
+		},
+		"4041C8A4-7439-4D55-8E14-395CBA970C93": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.cpp",
+			"name": "ofxSteamAudioBuffer.cpp",
+			"sourceTree": "<group>"
+		},
+		"4A0A36FA-EC79-44DF-8274-65836DB98E95": {
+			"fileRef": "55679119-6383-47CF-8CD3-C75D42396F83",
+			"isa": "PBXBuildFile"
+		},
+		"4EFAE6BC-6069-408D-8314-0EAC374EC16A": {
+			"children": [
+				"81B8FD0E-7FBF-4D98-B7E9-C9E66DBC9CDE"
+			],
+			"isa": "PBXGroup",
+			"name": "libs",
+			"path": "libs",
+			"sourceTree": "<group>"
+		},
+		"518354EF-40D6-47B6-A173-70D094CB4E6E": {
+			"fileRef": "5627C92F-D62B-49B3-842B-C479DC0393BF",
+			"isa": "PBXBuildFile"
+		},
+		"55679119-6383-47CF-8CD3-C75D42396F83": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.cpp",
+			"name": "ofxSteamAudioScene.cpp",
+			"sourceTree": "<group>"
+		},
+		"5627C92F-D62B-49B3-842B-C479DC0393BF": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "wrapper.framework",
+			"name": "Accelerate.framework",
+			"path": "System/Library/Frameworks/Accelerate.framework",
+			"sourceTree": "SDKROOT"
+		},
+		"5E048518-A11B-4887-8AF0-E9034F5AD834": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.cpp",
+			"name": "ofxSteamAudioContext.cpp",
+			"sourceTree": "<group>"
+		},
+		"5E87DB66-04EF-4C51-A958-688A6EFD1601": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.cpp",
+			"name": "ofxSteamAudioHRTF.cpp",
+			"sourceTree": "<group>"
+		},
+		"60E7946B-C9C7-4F9A-8B5A-D4BB3489D2B4": {
+			"fileRef": "FB3ABB56-322B-4344-B2D2-1080C62C6BFF",
+			"isa": "PBXBuildFile"
+		},
+		"7EB6922D-A5A9-40E4-BE44-4FCCE8C76F79": {
+			"fileRef": "5E87DB66-04EF-4C51-A958-688A6EFD1601",
+			"isa": "PBXBuildFile"
+		},
+		"81B8FD0E-7FBF-4D98-B7E9-C9E66DBC9CDE": {
+			"children": [
+				"CBE8155F-BAB6-401A-9DFE-CBDD883EB6DD"
+			],
+			"isa": "PBXGroup",
+			"name": "steamaudio",
+			"path": "steamaudio",
+			"sourceTree": "<group>"
+		},
+		"8C2C350F-121D-413A-A68A-C3FBBEB95A5F": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.h",
+			"name": "ofxSteamAudioScene.h",
+			"sourceTree": "<group>"
+		},
+		"8EA4992E-E39E-4F04-AEA1-1A822F1529F3": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.h",
+			"name": "ofxSteamAudioEffects.h",
+			"sourceTree": "<group>"
+		},
+		"A77FF679-ACC7-4142-9208-D925ED410248": {
+			"fileRef": "5E048518-A11B-4887-8AF0-E9034F5AD834",
+			"isa": "PBXBuildFile"
+		},
+		"BB4B014C10F69532006C3DED": {
+			"children": [
+				"229F53DB-343E-4BD1-9F04-C973B0E9BB62"
+			],
+			"isa": "PBXGroup",
+			"name": "addons",
+			"path": "../../../../addons",
+			"sourceTree": "SOURCE_ROOT"
+		},
+		"C4198B11-B5D7-440E-8F60-F9500F240F80": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.h",
+			"name": "ofxSteamAudioSimulator.h",
+			"sourceTree": "<group>"
+		},
+		"C42C5557-6089-4778-BDF1-9E255C0E88FB": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.cpp",
+			"name": "ofxSteamAudioEffects.cpp",
+			"sourceTree": "<group>"
+		},
+		"C8244AC1-DCCE-4F63-BB9E-D9790B1CC091": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "wrapper.framework",
+			"name": "AudioToolbox.framework",
+			"path": "System/Library/Frameworks/AudioToolbox.framework",
+			"sourceTree": "SDKROOT"
+		},
+		"CAAC76A9-0A6B-4CC5-B8F8-86E28E5C2832": {
+			"fileRef": "C42C5557-6089-4778-BDF1-9E255C0E88FB",
+			"isa": "PBXBuildFile"
+		},
+		"CAF77259-C007-4643-BA07-F57320764974": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.cpp",
+			"name": "ofxSteamAudioSimulator.cpp",
+			"sourceTree": "<group>"
+		},
+		"CBE8155F-BAB6-401A-9DFE-CBDD883EB6DD": {
+			"children": [
+				"083AE9C5-86A2-4FF2-A79E-EA7DB3B23C78",
+				"D992CF5C-743A-4904-BEF0-9AEEC6A60FC4",
+				"2285EE04-1625-41D0-8E7E-533999EF38BE"
+			],
+			"isa": "PBXGroup",
+			"name": "include",
+			"path": "include",
+			"sourceTree": "<group>"
+		},
+		"D299DAAC-715D-46EF-B6E6-50561BEE8852": {
+			"fileRef": "4041C8A4-7439-4D55-8E14-395CBA970C93",
+			"isa": "PBXBuildFile"
+		},
+		"D992CF5C-743A-4904-BEF0-9AEEC6A60FC4": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.h",
+			"name": "phonon_interfaces.h",
+			"sourceTree": "<group>"
+		},
+		"DB716D52-C606-493F-931E-EAB0865BD1EE": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "folder",
+			"name": "data",
+			"path": "bin/data",
+			"sourceTree": "SOURCE_ROOT"
+		},
+		"E42962A92163ECCD00A6A9E2": {
+			"alwaysOutOfDate": "1",
+			"buildActionMask": "2147483647",
+			"files": [],
+			"inputPaths": [],
+			"isa": "PBXShellScriptBuildPhase",
+			"name": "Run Script — Compile OF",
+			"outputPaths": [],
+			"runOnlyForDeploymentPostprocessing": "0",
+			"shellPath": "/bin/sh",
+			"shellScript": "$OF_CORE_BUILD_COMMAND\n",
+			"showEnvVarsInLog": "0"
+		},
+		"E4A5B60F29BAAAE400C2D356": {
+			"buildActionMask": "2147483647",
+			"dstPath": "",
+			"dstSubfolderSpec": "6",
+			"files": [],
+			"isa": "PBXCopyFilesBuildPhase",
+			"runOnlyForDeploymentPostprocessing": "0"
+		},
+		"E4B69B4A0A3A1720003C02F2": {
+			"children": [
+				"191CD6FA2847E21E0085CBB6",
+				"E4B6FCAD0C3E899E008CF71C",
+				"E4EB6923138AFD0F00A09F29",
+				"E4B69E1C0A3A1BDC003C02F2",
+				"191EF70929D778A400F35F26",
+				"BB4B014C10F69532006C3DED",
+				"E4B69B5B0A3A1756003C02F2",
+				"0D5E1111-AD0A-4F0B-93AB-E619C6A2F9DB",
+				"DB716D52-C606-493F-931E-EAB0865BD1EE"
+			],
+			"isa": "PBXGroup",
+			"sourceTree": "<group>"
+		},
+		"E4B69B4C0A3A1720003C02F2": {
+			"attributes": {
+				"BuildIndependentTargetsInParallel": "YES",
+				"LastUpgradeCheck": "1540"
+			},
+			"buildConfigurationList": "E4B69B4D0A3A1720003C02F2",
+			"compatibilityVersion": "Xcode 3.2",
+			"developmentRegion": "en",
+			"hasScannedForEncodings": "0",
+			"isa": "PBXProject",
+			"knownRegions": [
+				"en",
+				"Base"
+			],
+			"mainGroup": "E4B69B4A0A3A1720003C02F2",
+			"productRefGroup": "E4B69B4A0A3A1720003C02F2",
+			"projectDirPath": "",
+			"projectRoot": "",
+			"targets": [
+				"E4B69B5A0A3A1756003C02F2"
+			]
+		},
+		"E4B69B4D0A3A1720003C02F2": {
+			"buildConfigurations": [
+				"E4B69B4E0A3A1720003C02F2",
+				"E4B69B4F0A3A1720003C02F2"
+			],
+			"defaultConfigurationIsVisible": "0",
+			"defaultConfigurationName": "Release",
+			"isa": "XCConfigurationList"
+		},
+		"E4B69B4E0A3A1720003C02F2": {
+			"baseConfigurationReference": "E4EB6923138AFD0F00A09F29",
+			"buildSettings": {
+				"CODE_SIGN_ENTITLEMENTS": "of.entitlements",
+				"COPY_PHASE_STRIP": "NO",
+				"ENABLE_TESTABILITY": "YES",
+				"GCC_OPTIMIZATION_LEVEL": "0",
+				"GCC_WARN_UNUSED_VARIABLE": "NO",
+				"HEADER_SEARCH_PATHS": [
+					"$(OF_CORE_HEADERS)",
+					"src"
+				],
+				"OTHER_CPLUSPLUSFLAGS": "-D__MACOSX_CORE__"
+			},
+			"isa": "XCBuildConfiguration",
+			"name": "Debug"
+		},
+		"E4B69B4F0A3A1720003C02F2": {
+			"baseConfigurationReference": "E4EB6923138AFD0F00A09F29",
+			"buildSettings": {
+				"CODE_SIGN_ENTITLEMENTS": "of.entitlements",
+				"COPY_PHASE_STRIP": "YES",
+				"GCC_OPTIMIZATION_LEVEL": "3",
+				"GCC_UNROLL_LOOPS": "YES",
+				"HEADER_SEARCH_PATHS": [
+					"$(OF_CORE_HEADERS)",
+					"src"
+				],
+				"OTHER_CPLUSPLUSFLAGS": "-D__MACOSX_CORE__"
+			},
+			"isa": "XCBuildConfiguration",
+			"name": "Release"
+		},
+		"E4B69B580A3A1756003C02F2": {
+			"buildActionMask": "2147483647",
+			"files": [
+				"E4B69E200A3A1BDC003C02F2",
+				"E4B69E210A3A1BDC003C02F2",
+				"2CC73DD6-D9E5-45B4-9EF6-953405CEABF6",
+				"D299DAAC-715D-46EF-B6E6-50561BEE8852",
+				"A77FF679-ACC7-4142-9208-D925ED410248",
+				"CAAC76A9-0A6B-4CC5-B8F8-86E28E5C2832",
+				"7EB6922D-A5A9-40E4-BE44-4FCCE8C76F79",
+				"4A0A36FA-EC79-44DF-8274-65836DB98E95",
+				"400F1B34-D0A6-4F47-AB8E-F0ABDD9C4162"
+			],
+			"isa": "PBXSourcesBuildPhase",
+			"runOnlyForDeploymentPostprocessing": "0"
+		},
+		"E4B69B590A3A1756003C02F2": {
+			"buildActionMask": "2147483647",
+			"files": [
+				"518354EF-40D6-47B6-A173-70D094CB4E6E",
+				"0301F813-A6CF-4253-A33A-B8401C6A8C55",
+				"60E7946B-C9C7-4F9A-8B5A-D4BB3489D2B4"
+			],
+			"isa": "PBXFrameworksBuildPhase",
+			"runOnlyForDeploymentPostprocessing": "0"
+		},
+		"E4B69B5A0A3A1756003C02F2": {
+			"buildConfigurationList": "E4B69B5F0A3A1757003C02F2",
+			"buildPhases": [
+				"E42962A92163ECCD00A6A9E2",
+				"E4B69B580A3A1756003C02F2",
+				"E4B69B590A3A1756003C02F2",
+				"E4C2427710CC5ABF004149E2",
+				"E4A5B60F29BAAAE400C2D356",
+				"19B789C429E5AB4A0082E9B8"
+			],
+			"buildRules": [],
+			"dependencies": [],
+			"isa": "PBXNativeTarget",
+			"name": "example-ambisonics",
+			"productName": "myOFApp",
+			"productReference": "E4B69B5B0A3A1756003C02F2",
+			"productType": "com.apple.product-type.application"
+		},
+		"E4B69B5B0A3A1756003C02F2": {
+			"explicitFileType": "wrapper.application",
+			"includeInIndex": "0",
+			"isa": "PBXFileReference",
+			"path": "example-ambisonicsDebug.app",
+			"sourceTree": "BUILT_PRODUCTS_DIR"
+		},
+		"E4B69B5F0A3A1757003C02F2": {
+			"buildConfigurations": [
+				"E4B69B600A3A1757003C02F2",
+				"E4B69B610A3A1757003C02F2"
+			],
+			"defaultConfigurationIsVisible": "0",
+			"defaultConfigurationName": "Release",
+			"isa": "XCConfigurationList"
+		},
+		"E4B69B600A3A1757003C02F2": {
+			"baseConfigurationReference": "E4EB6923138AFD0F00A09F29",
+			"buildSettings": {
+				"ARCHS": "$(ARCHS_STANDARD)",
+				"COPY_PHASE_STRIP": "NO",
+				"FRAMEWORK_SEARCH_PATHS": "$(inherited)",
+				"GCC_DYNAMIC_NO_PIC": "NO",
+				"HEADER_SEARCH_PATHS": [
+					"$(OF_CORE_HEADERS)",
+					"src",
+					"src",
+					"../../libs/steamaudio/include",
+					"../../src"
+				],
+				"LIBRARY_SEARCH_PATHS": "$(inherited)",
+				"OTHER_LDFLAGS": [
+					"$(OF_CORE_LIBS)",
+					"$(OF_CORE_FRAMEWORKS)",
+					"$(LIB_OF_DEBUG)",
+					"../../libs/steamaudio/lib/osx/libphonon.a",
+					"../../libs/steamaudio/lib/osx/libmysofa.a",
+					"../../libs/steamaudio/lib/osx/libpffft.a",
+					"-lz"
+				]
+			},
+			"isa": "XCBuildConfiguration",
+			"name": "Debug"
+		},
+		"E4B69B610A3A1757003C02F2": {
+			"baseConfigurationReference": "E4EB6923138AFD0F00A09F29",
+			"buildSettings": {
+				"ARCHS": "$(ARCHS_STANDARD)",
+				"COPY_PHASE_STRIP": "YES",
+				"FRAMEWORK_SEARCH_PATHS": "$(inherited)",
+				"HEADER_SEARCH_PATHS": [
+					"$(OF_CORE_HEADERS)",
+					"src",
+					"src",
+					"../../libs/steamaudio/include",
+					"../../src"
+				],
+				"LIBRARY_SEARCH_PATHS": "$(inherited)",
+				"OTHER_LDFLAGS": [
+					"$(OF_CORE_LIBS)",
+					"$(OF_CORE_FRAMEWORKS)",
+					"$(LIB_OF_RELEASE)",
+					"../../libs/steamaudio/lib/osx/libphonon.a",
+					"../../libs/steamaudio/lib/osx/libmysofa.a",
+					"../../libs/steamaudio/lib/osx/libpffft.a",
+					"-lz"
+				],
+				"baseConfigurationReference": "E4EB6923138AFD0F00A09F29"
+			},
+			"isa": "XCBuildConfiguration",
+			"name": "Release"
+		},
+		"E4B69E1C0A3A1BDC003C02F2": {
+			"children": [
+				"E4B69E1D0A3A1BDC003C02F2",
+				"E4B69E1E0A3A1BDC003C02F2",
+				"E4B69E1F0A3A1BDC003C02F2"
+			],
+			"isa": "PBXGroup",
+			"path": "src",
+			"sourceTree": "SOURCE_ROOT"
+		},
+		"E4B69E1D0A3A1BDC003C02F2": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.cpp",
+			"name": "main.cpp",
+			"path": "src/main.cpp",
+			"sourceTree": "SOURCE_ROOT"
+		},
+		"E4B69E1E0A3A1BDC003C02F2": {
+			"explicitFileType": "sourcecode.cpp.cpp",
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"name": "ofApp.cpp",
+			"path": "src/ofApp.cpp",
+			"sourceTree": "SOURCE_ROOT"
+		},
+		"E4B69E1F0A3A1BDC003C02F2": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.c.h",
+			"name": "ofApp.h",
+			"path": "src/ofApp.h",
+			"sourceTree": "SOURCE_ROOT"
+		},
+		"E4B69E200A3A1BDC003C02F2": {
+			"fileRef": "E4B69E1D0A3A1BDC003C02F2",
+			"isa": "PBXBuildFile"
+		},
+		"E4B69E210A3A1BDC003C02F2": {
+			"fileRef": "E4B69E1E0A3A1BDC003C02F2",
+			"isa": "PBXBuildFile"
+		},
+		"E4B6FCAD0C3E899E008CF71C": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "text.plist.xml",
+			"path": "openFrameworks-Info.plist",
+			"sourceTree": "<group>"
+		},
+		"E4C2427710CC5ABF004149E2": {
+			"buildActionMask": "2147483647",
+			"dstPath": "",
+			"dstSubfolderSpec": "10",
+			"files": [],
+			"isa": "PBXCopyFilesBuildPhase",
+			"runOnlyForDeploymentPostprocessing": "0"
+		},
+		"E4EB6923138AFD0F00A09F29": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "text.xcconfig",
+			"path": "Project.xcconfig",
+			"sourceTree": "<group>"
+		},
+		"FB3ABB56-322B-4344-B2D2-1080C62C6BFF": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "wrapper.framework",
+			"name": "CoreAudio.framework",
+			"path": "System/Library/Frameworks/CoreAudio.framework",
+			"sourceTree": "SDKROOT"
+		},
+		"FBA0CE0A-230B-4384-9B89-638C1A42C866": {
+			"fileEncoding": "4",
+			"isa": "PBXFileReference",
+			"lastKnownFileType": "sourcecode.cpp.h",
+			"name": "ofxSteamAudioBuffer.h",
+			"sourceTree": "<group>"
+		}
+	},
+	"rootObject": "E4B69B4C0A3A1720003C02F2"
+}

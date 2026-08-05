@@ -106,3 +106,4 @@ Desktop.ini
 *.sql
 *.sqlite
 /examples/emptyExample/emptyExample.xcodeproj/xcshareddata/xcschemes
+*.xcscheme

@@ -1,22 +1,20 @@
 #pragma once
-
 #include "ofMain.h"
+#include "ofxSteamAudio.h"
 
-class ofApp : public ofBaseApp{
-	public:
-		void setup();
-		void update();
-		void draw();
-		
-		void keyPressed(int key);
-		void keyReleased(int key);
-		void mouseMoved(int x, int y);
-		void mouseDragged(int x, int y, int button);
-		void mousePressed(int x, int y, int button);
-		void mouseReleased(int x, int y, int button);
-		void mouseEntered(int x, int y);
-		void mouseExited(int x, int y);
-		void windowResized(int w, int h);
-		void dragEvent(ofDragInfo dragInfo);
-		void gotMessage(ofMessage msg);
+/// Binaural HRTF demo — maps to Steam Audio itest: binauraleffect
+class ofApp : public ofBaseApp {
+public:
+	void setup() override;
+	void update() override;
+	void draw() override;
+	void audioOut(ofSoundBuffer& buffer) override;
+	void keyPressed(int key) override;
+
+	ofEasyCam cam;
+	ofxSteamAudio::Engine audio;
+	ofSoundStream soundStream;
+	std::vector<int> sourceIds;
+	std::vector<ofBoxPrimitive> boxes;
+	bool audioOk = false;
 };
