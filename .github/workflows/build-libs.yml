@@ -1,15 +1,17 @@
 name: Build Steam Audio libs (apothecary)
 
-# Produces per-platform tar.gz assets for release tag libs-v*
-# Maintainer: run workflow_dispatch, then create/upload tag libs-v4.8.1
-# Or push tag libs-v* to publish.
+# Standalone openframeworks/apothecary only — no openFrameworks checkout.
+# Produces steamaudio-VER-<package_id>.tar.gz for release tag libs-v*
 
 on:
   workflow_dispatch:
     inputs:
       steamaudio_ver:
-        description: Steam Audio version (formula)
+        description: Steam Audio version stamp
         default: "4.8.1"
+      apothecary_ref:
+        description: openframeworks/apothecary git ref
+        default: "bleeding"
       upload_release:
         description: Upload artifacts to GitHub release tag
         type: boolean
@@ -20,9 +22,15 @@ on:
   push:
     tags:
       - "libs-v*"
+    paths:
+      - "scripts/apothecary/**"
+      - "scripts/build_libs.sh"
+      - "scripts/platforms.sh"
+      - ".github/workflows/build-libs.yml"
 
 env:
   STEAMAUDIO_VER: ${{ github.event.inputs.steamaudio_ver || '4.8.1' }}
+  APOTHECARY_REF: ${{ github.event.inputs.apothecary_ref || 'bleeding' }}
 
 jobs:
   build:
@@ -32,9 +40,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Full support targets first
           - package_id: osx
-            os: macos-latest
+            os: macos-14
             apo_type: osx
           - package_id: linux64
             os: ubuntu-22.04
@@ -42,7 +49,7 @@ jobs:
           - package_id: vs-x64
             os: windows-2022
             apo_type: vs
-          # Experimental / longer runners (enable when formula is ready)
+          # Uncomment when formula/deps are ready on CI:
           # - package_id: emscripten-wasm
           #   os: ubuntu-22.04
           #   apo_type: emscripten
@@ -51,77 +58,77 @@ jobs:
           #   apo_type: android
 
     steps:
-      - name: Checkout addon
+      - name: Checkout ofxSteamAudio
         uses: actions/checkout@v4
-        with:
-          path: ofxSteamAudio
 
-      - name: Checkout openFrameworks
+      - name: Checkout openframeworks/apothecary only
         uses: actions/checkout@v4
         with:
-          repository: openframeworks/openFrameworks
-          path: openFrameworks
-          fetch-depth: 1
+          repository: openframeworks/apothecary
+          ref: ${{ env.APOTHECARY_REF }}
+          path: apothecary
 
       - name: Install deps (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install cmake ninja pkg-config || true
+          brew install cmake ninja pkg-config automake autoconf libtool || true
 
       - name: Install deps (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build pkg-config python3
+          sudo apt-get install -y \
+            build-essential cmake ninja-build pkg-config python3 \
+            autoconf automake libtool git curl
 
       - name: Setup MSVC (Windows)
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Download OF libs for host (for apothecary toolchain)
-        working-directory: openFrameworks
+      - name: Apothecary platform install script
         shell: bash
-        run: |
-          if [ -f scripts/dev/download_libs.sh ]; then
-            case "${{ runner.os }}" in
-              macOS) bash scripts/dev/download_libs.sh -p osx || true ;;
-              Linux) bash scripts/dev/download_libs.sh -p linux64 || true ;;
-              Windows) bash scripts/dev/download_libs.sh -p vs || true ;;
-            esac
-          elif [ -f scripts/osx/download_libs.sh ] && [ "${{ runner.os }}" = "macOS" ]; then
-            bash scripts/osx/download_libs.sh || true
-          fi
-
-      - name: Link addon + build with manage_libs
-        shell: bash
-        env:
-          OF_ROOT: ${{ github.workspace }}/openFrameworks
-          STEAMAUDIO_VER: ${{ env.STEAMAUDIO_VER }}
         run: |
           set -e
-          mkdir -p openFrameworks/addons
-          rm -rf openFrameworks/addons/ofxSteamAudio
-          ln -s "${GITHUB_WORKSPACE}/ofxSteamAudio" openFrameworks/addons/ofxSteamAudio \
-            || cp -R ofxSteamAudio openFrameworks/addons/ofxSteamAudio
+          APO="${GITHUB_WORKSPACE}/apothecary"
+          case "${{ matrix.apo_type }}" in
+            osx)
+              if [ -f "$APO/scripts/osx/install.sh" ]; then bash "$APO/scripts/osx/install.sh" || true; fi
+              ;;
+            linux)
+              if [ -f "$APO/scripts/linux/install.sh" ]; then bash "$APO/scripts/linux/install.sh" || true; fi
+              if [ -f "$APO/scripts/linux64/install.sh" ]; then bash "$APO/scripts/linux64/install.sh" || true; fi
+              ;;
+            vs)
+              if [ -f "$APO/scripts/vs/install.sh" ]; then bash "$APO/scripts/vs/install.sh" || true; fi
+              ;;
+            emscripten)
+              if [ -f "$APO/scripts/emscripten/install.sh" ]; then bash "$APO/scripts/emscripten/install.sh" || true; fi
+              ;;
+            android)
+              if [ -f "$APO/scripts/android/install.sh" ]; then bash "$APO/scripts/android/install.sh" || true; fi
+              ;;
+          esac
 
-          cd ofxSteamAudio
+      - name: Build steamaudio via apothecary
+        shell: bash
+        env:
+          APOTHECARY_DIR: ${{ github.workspace }}/apothecary
+          STEAMAUDIO_VER: ${{ env.STEAMAUDIO_VER }}
+          A_VERBOSE: "1"
+        run: |
+          set -e
           chmod +x scripts/*.sh
-          # Prefer apothecary build; fall back to packaging any existing tree
-          if ./scripts/build_libs.sh "${{ matrix.package_id }}"; then
-            echo "apothecary build ok"
-          else
-            echo "WARNING: apothecary build failed for ${{ matrix.package_id }}"
-            echo "If libs already exist in the runner cache, packaging may still work."
-            exit 1
-          fi
+          ./scripts/build_libs.sh "${{ matrix.package_id }}"
           ./scripts/package_libs.sh "${{ matrix.package_id }}"
           ls -la scripts/dist/
+          # sanity
+          test -f "scripts/dist/steamaudio-${STEAMAUDIO_VER}-${{ matrix.package_id }}.tar.gz"
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
         with:
           name: steamaudio-${{ matrix.package_id }}
-          path: ofxSteamAudio/scripts/dist/*.tar.gz
+          path: scripts/dist/*.tar.gz
           if-no-files-found: error
 
   publish:
@@ -165,12 +172,13 @@ jobs:
           if ! gh release view "$TAG" >/dev/null 2>&1; then
             gh release create "$TAG" \
               --title "Steam Audio libs ${TAG}" \
-              --notes "Prebuilt Steam Audio libraries for ofxSteamAudio.
+              --notes "Prebuilt Steam Audio libraries for ofxSteamAudio (apothecary-only CI).
 
           Install:
           \`\`\`bash
           ./scripts/download_libs.sh host
           \`\`\`
+          Built with openframeworks/apothecary (no full openFrameworks checkout).
           "
           fi
           gh release upload "$TAG" dist/*.tar.gz --clobber

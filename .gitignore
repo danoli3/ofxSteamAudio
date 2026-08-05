@@ -125,3 +125,5 @@ libs/steamaudio/PACKAGE.txt
 scripts/dist/**
 !scripts/dist/.gitkeep
 scripts/.cache/
+# Standalone apothecary clone + build output (build_libs.sh)
+scripts/.cache/**

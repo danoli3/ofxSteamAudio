@@ -99,7 +99,7 @@ Prebuilt libs are **not** committed to git. Use the library manager:
 | Menu | Who | What |
 |------|-----|------|
 | **1 Download from release tag** | Consumers | Pull `libs-v4.8.1` assets (default install) |
-| **2 Build with apothecary** | Maintainers | Build via OF apothecary formula |
+| **2 Build with apothecary** | Maintainers | Standalone [apothecary](https://github.com/openframeworks/apothecary) only (no full OF) |
 | **3 Package** | Maintainers | Write `scripts/dist/steamaudio-*.tar.gz` |
 | **4 Upload** | Maintainers | `gh release upload` to tag `libs-v*` |
 | **5 Build + package + upload** | Maintainers | Full local pipeline for one platform |
@@ -109,12 +109,14 @@ Non-interactive:
 ```bash
 ./scripts/download_libs.sh host          # this machine
 ./scripts/download_libs.sh osx
-./scripts/build_libs.sh osx              # needs OF_ROOT + apothecary
+./scripts/build_libs.sh osx              # clones openframeworks/apothecary if needed
 ./scripts/package_libs.sh osx
 ./scripts/manage_libs.sh upload libs-v4.8.1
 ./scripts/manage_libs.sh list            # full platform matrix
 ./scripts/manage_libs.sh status
 ```
+
+`build_libs.sh` does **not** need openFrameworks — only [openframeworks/apothecary](https://github.com/openframeworks/apothecary) (`APOTHECARY_DIR` / auto-cache).
 
 Platforms (OF ∩ Steam Audio + OF extras): **osx, linux64, linuxaarch64, vs-x64, ios, android-\*, emscripten-\***, plus experimental/planned rows — see `scripts/platforms.sh`.
 
@@ -134,7 +136,7 @@ cd tests/api-tests && make -j Release && make RunRelease
 | Workflow | Purpose |
 |----------|---------|
 | [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Download libs tag → build OF → run tests/examples (macOS) |
-| [`.github/workflows/build-libs.yml`](.github/workflows/build-libs.yml) | Apothecary matrix → artifacts → optional upload to `libs-v*` |
+| [`.github/workflows/build-libs.yml`](.github/workflows/build-libs.yml) | Checkout **apothecary only** (not OF) → matrix build → optional `libs-v*` upload |
 
 **Maintainer release:**
 
