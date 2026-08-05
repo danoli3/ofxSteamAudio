@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    name: macOS download-libs + tests
+    runs-on: macos-latest
+    timeout-minutes: 90
+    env:
+      OF_DIR: openFrameworks
+      # Override if your release lives under another org/repo
+      # REPO: yourorg/ofxSteamAudio
+      LIBS_TAG: libs-v4.8.1
+
+    steps:
+      - name: Checkout ofxSteamAudio
+        uses: actions/checkout@v4
+        with:
+          path: ofxSteamAudio
+
+      - name: Checkout openFrameworks
+        uses: actions/checkout@v4
+        with:
+          repository: openframeworks/openFrameworks
+          path: ${{ env.OF_DIR }}
+          fetch-depth: 1
+
+      - name: Install tools
+        run: brew install cmake pkg-config || true
+
+      - name: Download OF libs
+        working-directory: ${{ env.OF_DIR }}
+        run: |
+          if [ -f scripts/osx/download_libs.sh ]; then
+            bash scripts/osx/download_libs.sh
+          elif [ -f scripts/dev/download_libs.sh ]; then
+            bash scripts/dev/download_libs.sh -p osx
+          fi
+
+      - name: Download Steam Audio prebuilts
+        working-directory: ofxSteamAudio
+        env:
+          REPO: ${{ github.repository }}
+        run: |
+          chmod +x scripts/*.sh
+          # Prefer release assets; if missing (fork without libs tag), keep committed/local libs if any
+          if ./scripts/download_libs.sh osx; then
+            echo "Downloaded osx libs from ${LIBS_TAG}"
+          else
+            echo "WARNING: download_libs failed — using any existing libs/steamaudio/lib/osx"
+            ls -la libs/steamaudio/lib/osx/ || true
+            test -f libs/steamaudio/lib/osx/libphonon.a
+          fi
+
+      - name: Link addon
+        run: |
+          mkdir -p "${OF_DIR}/addons"
+          rm -rf "${OF_DIR}/addons/ofxSteamAudio"
+          ln -s "$(pwd)/ofxSteamAudio" "${OF_DIR}/addons/ofxSteamAudio"
+
+      - name: Build OF core
+        working-directory: ${{ env.OF_DIR }}/libs/openFrameworksCompiled/project
+        run: make -j$(sysctl -n hw.ncpu) Release
+
+      - name: Build & run API tests
+        working-directory: ${{ env.OF_DIR }}/addons/ofxSteamAudio/tests/api-tests
+        run: |
+          make -j$(sysctl -n hw.ncpu) Release
+          BIN=$(find bin -type f -path '*.app/Contents/MacOS/*' | head -1)
+          if [ -z "$BIN" ]; then BIN=$(find bin -type f -perm +111 | head -1); fi
+          echo "Running $BIN"
+          "$BIN"
+
+      - name: Build examples
+        working-directory: ${{ env.OF_DIR }}/addons/ofxSteamAudio/examples
+        run: |
+          set -e
+          for ex in simple-example example-panning example-ambisonics \
+                    example-virtual-surround example-direct example-scene \
+                    example-reflections example-pathing; do
+            echo "======== $ex ========"
+            make -C "$ex" -j$(sysctl -n hw.ncpu) Release
+          done

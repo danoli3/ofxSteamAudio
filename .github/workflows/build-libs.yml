@@ -1,0 +1,176 @@
+name: Build Steam Audio libs (apothecary)
+
+# Produces per-platform tar.gz assets for release tag libs-v*
+# Maintainer: run workflow_dispatch, then create/upload tag libs-v4.8.1
+# Or push tag libs-v* to publish.
+
+on:
+  workflow_dispatch:
+    inputs:
+      steamaudio_ver:
+        description: Steam Audio version (formula)
+        default: "4.8.1"
+      upload_release:
+        description: Upload artifacts to GitHub release tag
+        type: boolean
+        default: false
+      libs_tag:
+        description: Release tag (if upload)
+        default: "libs-v4.8.1"
+  push:
+    tags:
+      - "libs-v*"
+
+env:
+  STEAMAUDIO_VER: ${{ github.event.inputs.steamaudio_ver || '4.8.1' }}
+
+jobs:
+  build:
+    name: ${{ matrix.package_id }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Full support targets first
+          - package_id: osx
+            os: macos-latest
+            apo_type: osx
+          - package_id: linux64
+            os: ubuntu-22.04
+            apo_type: linux
+          - package_id: vs-x64
+            os: windows-2022
+            apo_type: vs
+          # Experimental / longer runners (enable when formula is ready)
+          # - package_id: emscripten-wasm
+          #   os: ubuntu-22.04
+          #   apo_type: emscripten
+          # - package_id: android-arm64
+          #   os: ubuntu-22.04
+          #   apo_type: android
+
+    steps:
+      - name: Checkout addon
+        uses: actions/checkout@v4
+        with:
+          path: ofxSteamAudio
+
+      - name: Checkout openFrameworks
+        uses: actions/checkout@v4
+        with:
+          repository: openframeworks/openFrameworks
+          path: openFrameworks
+          fetch-depth: 1
+
+      - name: Install deps (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake ninja pkg-config || true
+
+      - name: Install deps (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config python3
+
+      - name: Setup MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Download OF libs for host (for apothecary toolchain)
+        working-directory: openFrameworks
+        shell: bash
+        run: |
+          if [ -f scripts/dev/download_libs.sh ]; then
+            case "${{ runner.os }}" in
+              macOS) bash scripts/dev/download_libs.sh -p osx || true ;;
+              Linux) bash scripts/dev/download_libs.sh -p linux64 || true ;;
+              Windows) bash scripts/dev/download_libs.sh -p vs || true ;;
+            esac
+          elif [ -f scripts/osx/download_libs.sh ] && [ "${{ runner.os }}" = "macOS" ]; then
+            bash scripts/osx/download_libs.sh || true
+          fi
+
+      - name: Link addon + build with manage_libs
+        shell: bash
+        env:
+          OF_ROOT: ${{ github.workspace }}/openFrameworks
+          STEAMAUDIO_VER: ${{ env.STEAMAUDIO_VER }}
+        run: |
+          set -e
+          mkdir -p openFrameworks/addons
+          rm -rf openFrameworks/addons/ofxSteamAudio
+          ln -s "${GITHUB_WORKSPACE}/ofxSteamAudio" openFrameworks/addons/ofxSteamAudio \
+            || cp -R ofxSteamAudio openFrameworks/addons/ofxSteamAudio
+
+          cd ofxSteamAudio
+          chmod +x scripts/*.sh
+          # Prefer apothecary build; fall back to packaging any existing tree
+          if ./scripts/build_libs.sh "${{ matrix.package_id }}"; then
+            echo "apothecary build ok"
+          else
+            echo "WARNING: apothecary build failed for ${{ matrix.package_id }}"
+            echo "If libs already exist in the runner cache, packaging may still work."
+            exit 1
+          fi
+          ./scripts/package_libs.sh "${{ matrix.package_id }}"
+          ls -la scripts/dist/
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: steamaudio-${{ matrix.package_id }}
+          path: ofxSteamAudio/scripts/dist/*.tar.gz
+          if-no-files-found: error
+
+  publish:
+    name: Publish release assets
+    needs: build
+    if: |
+      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/libs-v')) ||
+      (github.event_name == 'workflow_dispatch' && inputs.upload_release == true)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect tar.gz
+        run: |
+          mkdir -p dist
+          find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
+          ls -la dist/
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${{ github.event.inputs.libs_tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create / upload release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.name }}"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "Steam Audio libs ${TAG}" \
+              --notes "Prebuilt Steam Audio libraries for ofxSteamAudio.
+
+          Install:
+          \`\`\`bash
+          ./scripts/download_libs.sh host
+          \`\`\`
+          "
+          fi
+          gh release upload "$TAG" dist/*.tar.gz --clobber

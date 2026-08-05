@@ -107,3 +107,21 @@ Desktop.ini
 *.sqlite
 /examples/emptyExample/emptyExample.xcodeproj/xcshareddata/xcschemes
 *.xcscheme
+
+#########################
+# Steam Audio prebuilts
+# Obtain via: ./scripts/manage_libs.sh
+#########################
+
+# Built / downloaded binaries (headers+license may stay tracked)
+libs/steamaudio/lib/**
+!libs/steamaudio/lib/.gitkeep
+libs/steamaudio/VERSION
+libs/steamaudio/LIBS_TAG
+libs/steamaudio/INSTALLED_PLATFORMS
+libs/steamaudio/PACKAGE.txt
+
+# Package pipeline
+scripts/dist/**
+!scripts/dist/.gitkeep
+scripts/.cache/

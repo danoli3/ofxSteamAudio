@@ -88,37 +88,59 @@ ofxSteamAudio::BinauralEffect binaural;
 
 Requires openFrameworks (tested with modern OF on macOS arm64/x86_64).
 
-```bash
-# from an example
-cd examples/simple-example
-make -j
+### 1. Get Steam Audio binaries
 
-# headless tests
-cd tests/api-tests
-make -j Release
-./bin/api-tests   # or the generated app path
+Prebuilt libs are **not** committed to git. Use the library manager:
+
+```bash
+./scripts/manage_libs.sh
 ```
 
-### macOS libraries
+| Menu | Who | What |
+|------|-----|------|
+| **1 Download from release tag** | Consumers | Pull `libs-v4.8.1` assets (default install) |
+| **2 Build with apothecary** | Maintainers | Build via OF apothecary formula |
+| **3 Package** | Maintainers | Write `scripts/dist/steamaudio-*.tar.gz` |
+| **4 Upload** | Maintainers | `gh release upload` to tag `libs-v*` |
+| **5 Build + package + upload** | Maintainers | Full local pipeline for one platform |
 
-`addon_config.mk` links:
+Non-interactive:
 
-- `libphonon.a` (Steam Audio)
-- `libmysofa.a` (SOFA HRTF)
-- `libpffft.a` (FFT)
-- `zlib`, Accelerate, AudioToolbox, CoreAudio
+```bash
+./scripts/download_libs.sh host          # this machine
+./scripts/download_libs.sh osx
+./scripts/build_libs.sh osx              # needs OF_ROOT + apothecary
+./scripts/package_libs.sh osx
+./scripts/manage_libs.sh upload libs-v4.8.1
+./scripts/manage_libs.sh list            # full platform matrix
+./scripts/manage_libs.sh status
+```
 
-Embree-backed scenes are optional (x86_64 package bits); the default ray tracer works on Apple Silicon.
+Platforms (OF ∩ Steam Audio + OF extras): **osx, linux64, linuxaarch64, vs-x64, ios, android-\*, emscripten-\***, plus experimental/planned rows — see `scripts/platforms.sh`.
 
-## CI
+### 2. Build examples / tests
 
-GitHub Actions workflow [`.github/workflows/macos.yml`](.github/workflows/macos.yml) on `macos-latest`:
+```bash
+cd examples/simple-example && make -j
+cd tests/api-tests && make -j Release && make RunRelease
+```
 
-1. Checkout openFrameworks + this addon  
-2. Download OF libs  
-3. Build OF core  
-4. Build & run `tests/api-tests`  
-5. Compile all examples  
+### Link notes (macOS)
+
+`addon_config.mk` pulls `libphonon` (+ `libmysofa` / `libpffft` when present), zlib, Accelerate, AudioToolbox, CoreAudio. Default ray tracer (no Embree) works on Apple Silicon.
+
+## CI / releases
+
+| Workflow | Purpose |
+|----------|---------|
+| [`.github/workflows/ci.yml`](.github/workflows/ci.yml) | Download libs tag → build OF → run tests/examples (macOS) |
+| [`.github/workflows/build-libs.yml`](.github/workflows/build-libs.yml) | Apothecary matrix → artifacts → optional upload to `libs-v*` |
+
+**Maintainer release:**
+
+1. Run **Build Steam Audio libs** workflow (or build locally per platform).  
+2. Publish / push tag `libs-v4.8.1` with assets `steamaudio-4.8.1-<package_id>.tar.gz`.  
+3. Consumers run `./scripts/download_libs.sh host`.  
 
 ## Steam Audio
 
