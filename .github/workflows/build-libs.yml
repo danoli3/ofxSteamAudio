@@ -1,7 +1,8 @@
 name: Build Steam Audio libs (apothecary)
 
-# Standalone openframeworks/apothecary only — no openFrameworks checkout.
-# Produces steamaudio-VER-<package_id>.tar.gz for release tag libs-v*
+# Builds every mapped platform with openframeworks/apothecary only (no full OF).
+# fail-fast: false — failures are tracked in PLATFORM_STATUS (expected for WIP targets).
+# Successful packages can be uploaded to release tag libs-v*.
 
 on:
   workflow_dispatch:
@@ -12,51 +13,84 @@ on:
       apothecary_ref:
         description: openframeworks/apothecary git ref
         default: "bleeding"
+      support_filter:
+        description: "Which support levels to build (all|full|experimental|planned)"
+        default: "all"
       upload_release:
-        description: Upload artifacts to GitHub release tag
+        description: Upload successful packages to GitHub release
         type: boolean
         default: false
       libs_tag:
         description: Release tag (if upload)
         default: "libs-v4.8.1"
+      include_planned:
+        description: Include planned platforms (watchos/xros/catos)
+        type: boolean
+        default: true
+  schedule:
+    # Weekly status probe (Sunday 06:00 UTC)
+    - cron: "0 6 * * 0"
   push:
     tags:
       - "libs-v*"
-    paths:
-      - "scripts/apothecary/**"
-      - "scripts/build_libs.sh"
-      - "scripts/platforms.sh"
-      - ".github/workflows/build-libs.yml"
 
 env:
   STEAMAUDIO_VER: ${{ github.event.inputs.steamaudio_ver || '4.8.1' }}
   APOTHECARY_REF: ${{ github.event.inputs.apothecary_ref || 'bleeding' }}
+  FORCE_PLANNED: "1"
 
 jobs:
+  # Dynamic matrix from scripts/platforms.sh (ci_runner != none)
+  matrix-setup:
+    name: Build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.gen.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: gen
+        shell: bash
+        run: |
+          chmod +x scripts/*.sh
+          FILTER="${{ github.event.inputs.support_filter || 'all' }}"
+          # schedule always builds all
+          if [ "${{ github.event_name }}" = "schedule" ]; then FILTER=all; fi
+          JSON=$(./scripts/platforms.sh 2>/dev/null || true)
+          # emit matrix via bash function
+          source scripts/platforms.sh
+          # If planned excluded
+          if [ "${{ github.event.inputs.include_planned || 'true' }}" != "true" ] && [ "$FILTER" = "all" ]; then
+            # build full+experimental only
+            MATRIX='{"include":['
+            first=1
+            while IFS= read -r id; do
+              sup=$(platform_field "$id" support)
+              runner=$(platform_field "$id" ci_runner)
+              apo=$(platform_field "$id" apo_type)
+              [[ "$runner" == "none" ]] && continue
+              [[ "$sup" == "planned" ]] && continue
+              if [ "$FILTER" != "all" ] && [ "$sup" != "$FILTER" ]; then continue; fi
+              [ $first -eq 1 ] || MATRIX+=','
+              first=0
+              MATRIX+=$(printf '{"package_id":"%s","os":"%s","apo_type":"%s","support":"%s"}' "$id" "$runner" "$apo" "$sup")
+            done < <(platform_ids)
+            MATRIX+=']}'
+          else
+            MATRIX=$(emit_gha_matrix_json "$FILTER")
+          fi
+          echo "matrix<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$MATRIX" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+          echo "Matrix: $MATRIX"
+
   build:
     name: ${{ matrix.package_id }}
+    needs: matrix-setup
     runs-on: ${{ matrix.os }}
+    continue-on-error: true
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - package_id: osx
-            os: macos-14
-            apo_type: osx
-          - package_id: linux64
-            os: ubuntu-22.04
-            apo_type: linux
-          - package_id: vs-x64
-            os: windows-2022
-            apo_type: vs
-          # Uncomment when formula/deps are ready on CI:
-          # - package_id: emscripten-wasm
-          #   os: ubuntu-22.04
-          #   apo_type: emscripten
-          # - package_id: android-arm64
-          #   os: ubuntu-22.04
-          #   apo_type: android
-
+      matrix: ${{ fromJson(needs.matrix-setup.outputs.matrix) }}
     steps:
       - name: Checkout ofxSteamAudio
         uses: actions/checkout@v4
@@ -70,90 +104,240 @@ jobs:
 
       - name: Install deps (macOS)
         if: runner.os == 'macOS'
-        run: |
-          brew install cmake ninja pkg-config automake autoconf libtool || true
+        run: brew install cmake ninja pkg-config automake autoconf libtool || true
 
       - name: Install deps (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            build-essential cmake ninja-build pkg-config python3 \
+          sudo apt-get install -y build-essential cmake ninja-build pkg-config python3 \
             autoconf automake libtool git curl
 
       - name: Setup MSVC (Windows)
         if: runner.os == 'Windows'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Apothecary platform install script
+      - name: Setup MSYS2
+        if: matrix.apo_type == 'msys2'
+        uses: msys2/setup-msys2@v2
+        with:
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
+            git
+
+      - name: Setup Emscripten
+        if: matrix.apo_type == 'emscripten'
+        uses: mymindstorm/setup-emsdk@v14
+
+      - name: Setup Android NDK
+        if: matrix.apo_type == 'android'
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+          add-to-path: true
+
+      - name: Apothecary platform install
         shell: bash
         run: |
-          set -e
           APO="${GITHUB_WORKSPACE}/apothecary"
           case "${{ matrix.apo_type }}" in
-            osx)
-              if [ -f "$APO/scripts/osx/install.sh" ]; then bash "$APO/scripts/osx/install.sh" || true; fi
+            osx|ios|tvos|watchos|xros|catos)
+              [ -f "$APO/scripts/osx/install.sh" ] && bash "$APO/scripts/osx/install.sh" || true
               ;;
             linux)
-              if [ -f "$APO/scripts/linux/install.sh" ]; then bash "$APO/scripts/linux/install.sh" || true; fi
-              if [ -f "$APO/scripts/linux64/install.sh" ]; then bash "$APO/scripts/linux64/install.sh" || true; fi
+              [ -f "$APO/scripts/linux/install.sh" ] && bash "$APO/scripts/linux/install.sh" || true
+              [ -f "$APO/scripts/linux64/install.sh" ] && bash "$APO/scripts/linux64/install.sh" || true
               ;;
             vs)
-              if [ -f "$APO/scripts/vs/install.sh" ]; then bash "$APO/scripts/vs/install.sh" || true; fi
+              [ -f "$APO/scripts/vs/install.sh" ] && bash "$APO/scripts/vs/install.sh" || true
+              ;;
+            msys2)
+              [ -f "$APO/scripts/msys2/install.sh" ] && bash "$APO/scripts/msys2/install.sh" || true
               ;;
             emscripten)
-              if [ -f "$APO/scripts/emscripten/install.sh" ]; then bash "$APO/scripts/emscripten/install.sh" || true; fi
+              [ -f "$APO/scripts/emscripten/install.sh" ] && bash "$APO/scripts/emscripten/install.sh" || true
               ;;
             android)
-              if [ -f "$APO/scripts/android/install.sh" ]; then bash "$APO/scripts/android/install.sh" || true; fi
+              [ -f "$APO/scripts/android/install.sh" ] && bash "$APO/scripts/android/install.sh" || true
               ;;
           esac
 
-      - name: Build steamaudio via apothecary
+      - name: Build + package + test
+        id: build
         shell: bash
         env:
           APOTHECARY_DIR: ${{ github.workspace }}/apothecary
           STEAMAUDIO_VER: ${{ env.STEAMAUDIO_VER }}
+          FORCE_PLANNED: "1"
           A_VERBOSE: "1"
+          ANDROID_NDK_ROOT: ${{ steps.setup-ndk.outputs.ndk-path || '' }}
         run: |
-          set -e
+          set +e
           chmod +x scripts/*.sh
-          ./scripts/build_libs.sh "${{ matrix.package_id }}"
-          ./scripts/package_libs.sh "${{ matrix.package_id }}"
-          ls -la scripts/dist/
-          # sanity
-          test -f "scripts/dist/steamaudio-${STEAMAUDIO_VER}-${{ matrix.package_id }}.tar.gz"
+          mkdir -p scripts/.cache/status scripts/dist
+          PID="${{ matrix.package_id }}"
+          STATUS_DIR="scripts/.cache/status"
+          RESULT_BUILD=fail
+          RESULT_TEST=skipped
+          NOTES=""
 
-      - name: Upload package artifact
+          echo "==> Building $PID (support=${{ matrix.support }})"
+          ./scripts/build_libs.sh "$PID"
+          BUILD_EC=$?
+          if [ $BUILD_EC -eq 0 ]; then
+            RESULT_BUILD=pass
+            ./scripts/package_libs.sh "$PID"
+            PKG_EC=$?
+            if [ $PKG_EC -ne 0 ]; then
+              RESULT_BUILD=fail
+              NOTES="package failed"
+            else
+              ARCHIVE="scripts/dist/steamaudio-${STEAMAUDIO_VER}-${PID}.tar.gz"
+              if [ -f "$ARCHIVE" ]; then
+                STATUS_FILE="${STATUS_DIR}/${PID}-test.jsonl" \
+                  ./scripts/test_package.sh "$PID" "$ARCHIVE"
+                TEST_EC=$?
+                if [ $TEST_EC -eq 0 ]; then RESULT_TEST=pass; else RESULT_TEST=fail; NOTES="test_package failed"; fi
+              else
+                RESULT_TEST=fail
+                NOTES="archive missing after package"
+                RESULT_BUILD=fail
+              fi
+            fi
+          else
+            NOTES="build_libs exit $BUILD_EC"
+            RESULT_TEST=skipped
+          fi
+
+          # Always write status JSON for the report job
+          printf '{"package_id":"%s","phase":"build","result":"%s","support":"%s","notes":"%s"}\n' \
+            "$PID" "$RESULT_BUILD" "${{ matrix.support }}" "$NOTES" \
+            > "${STATUS_DIR}/${PID}-build.json"
+          printf '{"package_id":"%s","phase":"test","result":"%s","support":"%s","notes":"%s"}\n' \
+            "$PID" "$RESULT_TEST" "${{ matrix.support }}" "$NOTES" \
+            > "${STATUS_DIR}/${PID}-test.json"
+
+          echo "build_result=$RESULT_BUILD" >> "$GITHUB_OUTPUT"
+          echo "test_result=$RESULT_TEST" >> "$GITHUB_OUTPUT"
+
+          # Job is continue-on-error; still exit 0 so artifact upload runs
+          # Mark step failed visually via annotation when build fails
+          if [ "$RESULT_BUILD" != "pass" ]; then
+            echo "::warning::Platform $PID build=$RESULT_BUILD test=$RESULT_TEST ($NOTES)"
+          else
+            echo "::notice::Platform $PID build=pass test=$RESULT_TEST"
+          fi
+          exit 0
+
+      - name: Upload package (if any)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: steamaudio-${{ matrix.package_id }}
+          name: pkg-${{ matrix.package_id }}
           path: scripts/dist/*.tar.gz
-          if-no-files-found: error
+          if-no-files-found: ignore
+
+      - name: Upload status JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: status-${{ matrix.package_id }}
+          path: scripts/.cache/status/*
+          if-no-files-found: ignore
+
+  report:
+    name: Aggregate platform status
+    needs: [matrix-setup, build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download status artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: status-*
+          merge-multiple: true
+
+      - name: Download packages (for release + inventory)
+        uses: actions/download-artifact@v4
+        with:
+          path: packages
+          pattern: pkg-*
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Generate PLATFORM_STATUS.md
+        env:
+          REPO: ${{ github.repository }}
+          LIBS_TAG: ${{ github.event.inputs.libs_tag || 'libs-v4.8.1' }}
+          STEAMAUDIO_VER: ${{ env.STEAMAUDIO_VER }}
+        run: |
+          chmod +x scripts/*.sh
+          mkdir -p scripts/.cache/status scripts/dist
+          # collect status files
+          find artifacts -type f \( -name '*.json' -o -name '*.jsonl' \) -exec cp {} scripts/.cache/status/ \; 2>/dev/null || true
+          ls -la scripts/.cache/status/ || true
+          # successful packages
+          find packages -name '*.tar.gz' -exec cp {} scripts/dist/ \; 2>/dev/null || true
+          ls -la scripts/dist/ || true
+
+          ./scripts/report_status.sh \
+            --from-dir scripts/.cache/status \
+            --from-release \
+            --write PLATFORM_STATUS.md
+
+          echo "## Platform status" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          # table body without header fluff
+          sed -n '/^## Matrix$/,/^## Counts$/p' PLATFORM_STATUS.md | head -n -1 >> "$GITHUB_STEP_SUMMARY" || cat PLATFORM_STATUS.md >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          sed -n '/^## Counts$/,/^## How/p' PLATFORM_STATUS.md | head -n -1 >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload status report
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-status-report
+          path: |
+            PLATFORM_STATUS.md
+            scripts/.cache/status/platform_status.json
+            scripts/dist/*.tar.gz
 
   publish:
-    name: Publish release assets
-    needs: build
+    name: Publish successful packages
+    needs: [build, report]
     if: |
-      (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/libs-v')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.upload_release == true)
+      always() && (
+        (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/libs-v')) ||
+        (github.event_name == 'workflow_dispatch' && inputs.upload_release == true)
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download packages + status
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
-      - name: Collect tar.gz
+      - name: Collect successful tar.gz only
         run: |
           mkdir -p dist
-          find artifacts -name '*.tar.gz' -exec cp {} dist/ \;
-          ls -la dist/
+          find artifacts -name 'steamaudio-*.tar.gz' -exec cp {} dist/ \;
+          ls -la dist/ || true
+          if ! ls dist/*.tar.gz >/dev/null 2>&1; then
+            echo "No packages to upload (all platforms may have failed build)"
+          fi
+          # status
+          find artifacts -name 'PLATFORM_STATUS.md' -exec cp {} . \; || true
+          find artifacts -name 'platform_status.json' -exec cp {} . \; || true
 
       - name: Resolve tag
         id: tag
@@ -164,21 +348,34 @@ jobs:
             echo "name=${{ github.event.inputs.libs_tag }}" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Create / upload release
+      - name: Create / update release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ steps.tag.outputs.name }}"
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" \
-              --title "Steam Audio libs ${TAG}" \
-              --notes "Prebuilt Steam Audio libraries for ofxSteamAudio (apothecary-only CI).
+          NOTES_FILE=$(mktemp)
+          {
+            echo "Prebuilt Steam Audio libs for ofxSteamAudio (apothecary-only)."
+            echo
+            echo "Install: \`./scripts/download_libs.sh host\`"
+            echo
+            if [ -f PLATFORM_STATUS.md ]; then
+              echo "## Platform status"
+              echo
+              sed -n '/^## Matrix$/,/^## Counts$/p' PLATFORM_STATUS.md | head -n -1
+              echo
+              sed -n '/^## Counts$/,/^## How/p' PLATFORM_STATUS.md | head -n -1
+            fi
+          } > "$NOTES_FILE"
 
-          Install:
-          \`\`\`bash
-          ./scripts/download_libs.sh host
-          \`\`\`
-          Built with openframeworks/apothecary (no full openFrameworks checkout).
-          "
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "Steam Audio libs ${TAG}" --notes-file "$NOTES_FILE"
+          else
+            gh release edit "$TAG" --notes-file "$NOTES_FILE" || true
           fi
-          gh release upload "$TAG" dist/*.tar.gz --clobber
+          if ls dist/*.tar.gz >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/*.tar.gz --clobber
+          fi
+          if [ -f PLATFORM_STATUS.md ]; then
+            gh release upload "$TAG" PLATFORM_STATUS.md --clobber || true
+          fi

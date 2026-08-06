@@ -1,0 +1,225 @@
+#!/usr/bin/env bash
+# Aggregate platform build/test status into PLATFORM_STATUS.md (+ JSON).
+# Compatible with bash 3.2+ (macOS default).
+#
+#   ./scripts/report_status.sh --from-local --from-release
+#   ./scripts/report_status.sh --from-dir scripts/.cache/status --write PLATFORM_STATUS.md
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ADDON_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=platforms.sh
+source "$SCRIPT_DIR/platforms.sh"
+
+FROM_DIR=""
+FROM_RELEASE=0
+FROM_LOCAL=0
+OUT_MD="${ADDON_ROOT}/PLATFORM_STATUS.md"
+OUT_JSON="${ADDON_ROOT}/scripts/.cache/status/platform_status.json"
+STATE_DIR=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --from-dir) FROM_DIR="$2"; shift 2 ;;
+    --from-release) FROM_RELEASE=1; shift ;;
+    --from-local) FROM_LOCAL=1; shift ;;
+    --write) OUT_MD="$2"; shift 2 ;;
+    -h|--help) head -20 "$0"; exit 0 ;;
+    *) echo "Unknown arg: $1" >&2; exit 2 ;;
+  esac
+done
+
+if [[ $FROM_RELEASE -eq 0 && $FROM_LOCAL -eq 0 && -z "$FROM_DIR" ]]; then
+  FROM_LOCAL=1
+  FROM_RELEASE=1
+fi
+
+STATE_DIR="$(mktemp -d "${TMPDIR:-/tmp}/ofxsa-status.XXXXXX")"
+cleanup() { rm -rf "$STATE_DIR"; }
+trap cleanup EXIT
+
+set_field() {
+  # set_field <id> <field> <value>
+  printf '%s' "$3" > "${STATE_DIR}/${1}.${2}"
+}
+
+get_field() {
+  local f="${STATE_DIR}/${1}.${2}"
+  if [[ -f "$f" ]]; then cat "$f"; else echo "unknown"; fi
+}
+
+detect_repo() {
+  if [[ -n "${REPO:-}" ]]; then echo "$REPO"; return; fi
+  local url
+  url="$(git -C "$ADDON_ROOT" remote get-url origin 2>/dev/null || true)"
+  if [[ "$url" =~ github.com[:/]([^/]+)/([^/.]+) ]]; then
+    echo "${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
+    return
+  fi
+  echo "danoli3/ofxSteamAudio"
+}
+
+for id in $(platform_ids); do
+  set_field "$id" build "unknown"
+  set_field "$id" test "unknown"
+  set_field "$id" release "missing"
+  set_field "$id" notes ""
+done
+
+# --- status dir ---
+if [[ -n "$FROM_DIR" && -d "$FROM_DIR" ]]; then
+  while IFS= read -r -d '' f; do
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      [[ -z "$line" || "$line" != \{* ]] && continue
+      id="$(echo "$line" | sed -n 's/.*"package_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+      [[ -z "$id" ]] && continue
+      res="$(echo "$line" | sed -n 's/.*"result"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+      phase="$(echo "$line" | sed -n 's/.*"phase"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+      note="$(echo "$line" | sed -n 's/.*"notes"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+      phase="${phase:-build}"
+      if [[ "$phase" == "test" ]]; then
+        set_field "$id" test "${res:-unknown}"
+      else
+        set_field "$id" build "${res:-unknown}"
+      fi
+      [[ -n "$note" ]] && set_field "$id" notes "$note"
+    done < "$f"
+  done < <(find "$FROM_DIR" -type f \( -name '*.json' -o -name '*.jsonl' \) -print0 2>/dev/null)
+fi
+
+# --- local ---
+if [[ $FROM_LOCAL -eq 1 ]]; then
+  for id in $(platform_ids); do
+    ofp="$(platform_field "$id" of_path)"
+    lib="$ADDON_ROOT/libs/steamaudio/lib/${ofp}"
+    name="$(expected_lib_name "$id")"
+    if [[ -f "${lib}/${name}" || -f "${lib}/libphonon.so" || -f "${lib}/libphonon.dylib" ]]; then
+      if [[ "$(get_field "$id" build)" == "unknown" ]]; then
+        set_field "$id" build "local"
+      fi
+      if [[ "$(get_field "$id" test)" == "unknown" ]]; then
+        if "$SCRIPT_DIR/test_package.sh" "$id" >/dev/null 2>&1; then
+          set_field "$id" test "pass"
+        else
+          set_field "$id" test "fail"
+        fi
+      fi
+    fi
+  done
+fi
+
+# --- release ---
+if [[ $FROM_RELEASE -eq 1 ]]; then
+  repo="$(detect_repo)"
+  tag="$LIBS_TAG"
+  echo "Probing release $tag on $repo ..."
+  for id in $(platform_ids); do
+    asset="$(asset_name "$id")"
+    url="https://github.com/${repo}/releases/download/${tag}/${asset}"
+    code="$(curl -s -o /dev/null -w '%{http_code}' -L --max-time 15 -I "$url" 2>/dev/null || echo 000)"
+    if [[ "$code" == "200" ]]; then
+      set_field "$id" release "present"
+    else
+      set_field "$id" release "missing"
+    fi
+  done
+fi
+
+mkdir -p "$(dirname "$OUT_MD")"
+mkdir -p "$(dirname "$OUT_JSON")"
+
+# JSON
+{
+  echo "{"
+  echo "  \"steamaudio_ver\": \"${STEAMAUDIO_VER}\","
+  echo "  \"libs_tag\": \"${LIBS_TAG}\","
+  echo "  \"generated_utc\": \"$(date -u +%Y-%m-%dT%H:%M:%SZ)\","
+  echo "  \"platforms\": {"
+  first=1
+  for id in $(platform_ids); do
+    [[ $first -eq 1 ]] || echo ","
+    first=0
+    printf '    "%s": {"support":"%s","ci_runner":"%s","build":"%s","test":"%s","release_asset":"%s","notes":"%s"}' \
+      "$id" \
+      "$(platform_field "$id" support)" \
+      "$(platform_field "$id" ci_runner)" \
+      "$(get_field "$id" build)" \
+      "$(get_field "$id" test)" \
+      "$(get_field "$id" release)" \
+      "$(get_field "$id" notes | tr '"' "'")"
+  done
+  echo
+  echo "  }"
+  echo "}"
+} > "$OUT_JSON"
+
+# Markdown
+{
+  echo "# ofxSteamAudio platform status"
+  echo
+  echo "Generated by \`scripts/report_status.sh\`."
+  echo
+  echo "| Field | Value |"
+  echo "|-------|-------|"
+  echo "| Steam Audio | \`${STEAMAUDIO_VER}\` |"
+  echo "| Release tag | \`${LIBS_TAG}\` |"
+  echo "| Generated (UTC) | $(date -u +%Y-%m-%dT%H:%M:%SZ) |"
+  echo
+  echo "## Legend"
+  echo
+  echo "| Value | Meaning |"
+  echo "|-------|---------|"
+  echo "| pass / local | Good / present on disk |"
+  echo "| fail | Attempted, failed (expected for WIP) |"
+  echo "| present / missing | GitHub Release asset |"
+  echo "| unknown / skipped | Not run |"
+  echo "| none | No GHA runner |"
+  echo
+  echo "## Matrix"
+  echo
+  echo "| Package | Support | CI runner | Build | Package test | Release asset | Notes |"
+  echo "|---------|---------|-----------|-------|--------------|---------------|-------|"
+  for id in $(platform_ids); do
+    printf "| \`%s\` | %s | \`%s\` | %s | %s | %s | %s |\n" \
+      "$id" \
+      "$(platform_field "$id" support)" \
+      "$(platform_field "$id" ci_runner)" \
+      "$(get_field "$id" build)" \
+      "$(get_field "$id" test)" \
+      "$(get_field "$id" release)" \
+      "$(get_field "$id" notes)"
+  done
+  echo
+  echo "## Counts"
+  echo
+  b_pass=0; b_fail=0; b_unk=0; r_ok=0; r_miss=0
+  for id in $(platform_ids); do
+    b="$(get_field "$id" build)"
+    r="$(get_field "$id" release)"
+    case "$b" in pass|ok|local) b_pass=$((b_pass+1)) ;; fail) b_fail=$((b_fail+1)) ;; *) b_unk=$((b_unk+1)) ;; esac
+    case "$r" in present) r_ok=$((r_ok+1)) ;; *) r_miss=$((r_miss+1)) ;; esac
+  done
+  echo "- Build known-good (pass/local): **${b_pass}**"
+  echo "- Build failed: **${b_fail}**"
+  echo "- Build unknown/skipped: **${b_unk}**"
+  echo "- Release assets present: **${r_ok}**"
+  echo "- Release assets missing: **${r_miss}**"
+  echo
+  echo "## How to refresh"
+  echo
+  echo "\`\`\`bash"
+  echo "./scripts/report_status.sh --from-local --from-release"
+  echo "./scripts/manage_libs.sh status"
+  echo "# CI: Actions → Build Steam Audio libs (apothecary) — failures OK, tracked in report"
+  echo "\`\`\`"
+} > "$OUT_MD"
+
+echo "[ok] wrote $OUT_MD"
+echo "[ok] wrote $OUT_JSON"
+echo
+for id in $(platform_ids); do
+  printf "%-20s build=%-8s test=%-8s release=%-8s runner=%s\n" \
+    "$id" "$(get_field "$id" build)" "$(get_field "$id" test)" \
+    "$(get_field "$id" release)" "$(platform_field "$id" ci_runner)"
+done

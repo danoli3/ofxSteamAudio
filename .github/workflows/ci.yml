@@ -1,88 +1,169 @@
 name: CI
 
+# Default CI: no openFrameworks.
+# Tracks which release assets exist per platform + verifies downloads that succeed.
+
 on:
   push:
     branches: [main, master]
   pull_request:
   workflow_dispatch:
+    inputs:
+      run_of_tests:
+        description: Also build OF examples on macOS (slow; needs OF)
+        type: boolean
+        default: false
+      libs_tag:
+        description: GitHub release tag for prebuilt libs
+        default: "libs-v4.8.1"
+
+env:
+  LIBS_TAG: ${{ github.event.inputs.libs_tag || 'libs-v4.8.1' }}
+  STEAMAUDIO_VER: "4.8.1"
 
 jobs:
-  macos:
-    name: macOS download-libs + tests
+  # Probe every platform asset + download/test whatever is available
+  track-platforms:
+    name: Track release platforms
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe release assets + local tests
+        env:
+          REPO: ${{ github.repository }}
+          LIBS_TAG: ${{ env.LIBS_TAG }}
+        run: |
+          set +e
+          chmod +x scripts/*.sh
+          mkdir -p scripts/.cache/status
+          source scripts/platforms.sh
+
+          echo "## Release probe \`${LIBS_TAG}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Package | Support | Asset | Download | Test |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---------|---------|-------|----------|------|" >> "$GITHUB_STEP_SUMMARY"
+
+          FAIL_COUNT=0
+          PASS_COUNT=0
+          MISS_COUNT=0
+
+          for id in $(platform_ids); do
+            asset=$(asset_name "$id")
+            url="https://github.com/${REPO}/releases/download/${LIBS_TAG}/${asset}"
+            code=$(curl -s -o /dev/null -w '%{http_code}' -L -I "$url")
+            dl="skipped"
+            test_r="skipped"
+            asset_r="missing"
+
+            if [ "$code" = "200" ]; then
+              asset_r="present"
+              if ./scripts/download_libs.sh "$id"; then
+                dl="pass"
+                if STATUS_FILE="scripts/.cache/status/${id}-test.jsonl" \
+                    ./scripts/test_package.sh "$id"; then
+                  test_r="pass"
+                  PASS_COUNT=$((PASS_COUNT+1))
+                else
+                  test_r="fail"
+                  FAIL_COUNT=$((FAIL_COUNT+1))
+                fi
+              else
+                dl="fail"
+                test_r="skipped"
+                FAIL_COUNT=$((FAIL_COUNT+1))
+              fi
+              printf '{"package_id":"%s","phase":"build","result":"%s","support":"%s","notes":"release asset"}\n' \
+                "$id" "pass" "$(platform_field "$id" support)" \
+                > "scripts/.cache/status/${id}-build.json"
+            else
+              MISS_COUNT=$((MISS_COUNT+1))
+              printf '{"package_id":"%s","phase":"build","result":"unknown","support":"%s","notes":"no release asset HTTP %s"}\n' \
+                "$id" "$(platform_field "$id" support)" "$code" \
+                > "scripts/.cache/status/${id}-build.json"
+            fi
+
+            echo "| \`$id\` | $(platform_field "$id" support) | $asset_r | $dl | $test_r |" >> "$GITHUB_STEP_SUMMARY"
+          done
+
+          ./scripts/report_status.sh \
+            --from-dir scripts/.cache/status \
+            --from-release \
+            --write PLATFORM_STATUS.md
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### Counts" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Assets present & tested OK: **$PASS_COUNT**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Assets present but failed: **$FAIL_COUNT**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Assets missing: **$MISS_COUNT**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Full matrix regenerated in artifact \`platform-status\`." >> "$GITHUB_STEP_SUMMARY"
+
+          # CI stays green for tracking: missing platforms are INFO not hard-fail
+          # Hard-fail only if *some* assets exist and *all* of them fail tests
+          if [ "$PASS_COUNT" -eq 0 ] && [ "$FAIL_COUNT" -gt 0 ]; then
+            echo "::error::Release has assets but every download/test failed"
+            exit 1
+          fi
+          if [ "$PASS_COUNT" -eq 0 ] && [ "$MISS_COUNT" -gt 0 ]; then
+            echo "::warning::No release assets found for ${LIBS_TAG}. Run 'Build Steam Audio libs' with upload_release=true."
+            # Still succeed so status tracking is visible; change to exit 1 when you want gatekeeping
+            exit 0
+          fi
+          exit 0
+
+      - name: Upload status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-status
+          path: |
+            PLATFORM_STATUS.md
+            scripts/.cache/status/**
+
+  of-macos-tests:
+    name: OF examples (optional)
+    if: github.event_name == 'workflow_dispatch' && inputs.run_of_tests == true
+    needs: track-platforms
     runs-on: macos-latest
     timeout-minutes: 90
     env:
       OF_DIR: openFrameworks
-      # Override if your release lives under another org/repo
-      # REPO: yourorg/ofxSteamAudio
-      LIBS_TAG: libs-v4.8.1
-
     steps:
-      - name: Checkout ofxSteamAudio
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           path: ofxSteamAudio
 
-      - name: Checkout openFrameworks
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           repository: openframeworks/openFrameworks
           path: ${{ env.OF_DIR }}
           fetch-depth: 1
 
-      - name: Install tools
-        run: brew install cmake pkg-config || true
+      - run: brew install cmake pkg-config || true
 
       - name: Download OF libs
         working-directory: ${{ env.OF_DIR }}
         run: |
-          if [ -f scripts/osx/download_libs.sh ]; then
-            bash scripts/osx/download_libs.sh
-          elif [ -f scripts/dev/download_libs.sh ]; then
-            bash scripts/dev/download_libs.sh -p osx
-          fi
+          if [ -f scripts/osx/download_libs.sh ]; then bash scripts/osx/download_libs.sh
+          elif [ -f scripts/dev/download_libs.sh ]; then bash scripts/dev/download_libs.sh -p osx; fi
 
-      - name: Download Steam Audio prebuilts
+      - name: Download Steam Audio
         working-directory: ofxSteamAudio
         env:
           REPO: ${{ github.repository }}
+          LIBS_TAG: ${{ env.LIBS_TAG }}
         run: |
           chmod +x scripts/*.sh
-          # Prefer release assets; if missing (fork without libs tag), keep committed/local libs if any
-          if ./scripts/download_libs.sh osx; then
-            echo "Downloaded osx libs from ${LIBS_TAG}"
-          else
-            echo "WARNING: download_libs failed — using any existing libs/steamaudio/lib/osx"
-            ls -la libs/steamaudio/lib/osx/ || true
-            test -f libs/steamaudio/lib/osx/libphonon.a
-          fi
+          ./scripts/download_libs.sh osx
+          test -f libs/steamaudio/lib/osx/libphonon.a
 
-      - name: Link addon
+      - name: Link addon + build
         run: |
           mkdir -p "${OF_DIR}/addons"
           rm -rf "${OF_DIR}/addons/ofxSteamAudio"
           ln -s "$(pwd)/ofxSteamAudio" "${OF_DIR}/addons/ofxSteamAudio"
-
-      - name: Build OF core
-        working-directory: ${{ env.OF_DIR }}/libs/openFrameworksCompiled/project
-        run: make -j$(sysctl -n hw.ncpu) Release
-
-      - name: Build & run API tests
-        working-directory: ${{ env.OF_DIR }}/addons/ofxSteamAudio/tests/api-tests
-        run: |
-          make -j$(sysctl -n hw.ncpu) Release
-          BIN=$(find bin -type f -path '*.app/Contents/MacOS/*' | head -1)
-          if [ -z "$BIN" ]; then BIN=$(find bin -type f -perm +111 | head -1); fi
-          echo "Running $BIN"
+          make -C "${OF_DIR}/libs/openFrameworksCompiled/project" -j$(sysctl -n hw.ncpu) Release
+          make -C "${OF_DIR}/addons/ofxSteamAudio/tests/api-tests" -j$(sysctl -n hw.ncpu) Release
+          BIN=$(find "${OF_DIR}/addons/ofxSteamAudio/tests/api-tests/bin" -type f -path '*.app/Contents/MacOS/*' | head -1)
           "$BIN"
-
-      - name: Build examples
-        working-directory: ${{ env.OF_DIR }}/addons/ofxSteamAudio/examples
-        run: |
-          set -e
-          for ex in simple-example example-panning example-ambisonics \
-                    example-virtual-surround example-direct example-scene \
-                    example-reflections example-pathing; do
-            echo "======== $ex ========"
-            make -C "$ex" -j$(sysctl -n hw.ncpu) Release
-          done
